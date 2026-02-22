@@ -10,7 +10,7 @@ import io.ktor.server.plugins.origin
  * @see io.ktor.http.RequestConnectionPoint.remoteAddress
  */
 fun ApplicationCall.clientIp(): String {
-    val isBehindProxy = request.origin.remoteAddress.startsWith("172.") // loopback interface
+    val isBehindProxy = request.origin.remoteAddress.startsWith("172.") // private network
             || request.origin.remoteAddress.startsWith("10.") // Cloudflare tunnel
             || request.origin.remoteAddress.startsWith("192.168") // local IPv4 network
 
