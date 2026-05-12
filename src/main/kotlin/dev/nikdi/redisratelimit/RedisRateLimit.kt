@@ -3,11 +3,16 @@ package dev.nikdi.redisratelimit
 import eu.vendeli.rethis.ReThis
 import eu.vendeli.rethis.command.generic.expire
 import eu.vendeli.rethis.command.string.incr
+import eu.vendeli.rethis.shared.types.Int64
+import eu.vendeli.rethis.shared.types.RPrimitive
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
+import io.ktor.util.logging.*
 import kotlin.time.Duration.Companion.seconds
+
+private val logger = KtorSimpleLogger("dev.nikdi.redisratelimit.RedisRateLimit")
 
 /**
  * A **route-scoped** Ktor plugin that enforces rate limiting via Redis as the backing store.
@@ -40,8 +45,13 @@ val RedisRateLimit = createRouteScopedPlugin(
     name = "RedisRateLimit",
     createConfiguration = ::RedisRateLimitConfig
 ) {
+    val rethis = pluginConfig.rethisInstance ?: run {
+        val msg = "RedisRateLimit: rethisInstance must be provided!"
+        logger.error(msg)
+        error(msg)
+    }
 
-    val rethis: ReThis = requireNotNull(pluginConfig.rethisInstance) { "RedisRateLimit: rethisInstance must be provided!" }
+    logger.debug("RedisRateLimit: Plugin initialized with config:\n{}", pluginConfig)
 
     onCall { call ->
         val keyBase = pluginConfig.keySelector(call)
@@ -53,7 +63,14 @@ val RedisRateLimit = createRouteScopedPlugin(
             expire(redisKey, pluginConfig.windowSeconds.seconds)
         }
 
-        val count = (results?.first()?.value as Number).toLong()
+        val count = when (val response = results?.first()) {
+            is Int64 -> response.value
+            is RPrimitive -> (response.value as? Number)?.toLong()
+                ?: error("RedisRateLimit: INCR returned non-numeric primitive: ${response::class.simpleName}")
+
+            null -> error("RedisRateLimit: transaction returned no results")
+            else -> error("RedisRateLimit: unexpected INCR response type: ${response::class.simpleName}")
+        }
 
         if (count > pluginConfig.maxRequests) {
             call.response.header(

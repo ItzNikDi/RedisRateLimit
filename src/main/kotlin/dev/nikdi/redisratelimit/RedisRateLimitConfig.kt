@@ -17,7 +17,7 @@ class RedisRateLimitConfig {
     /**
      * The [ReThis] instance used to communicate with Redis.
      *
-     * **MUST** be set before the plugin is installed. Throws [IllegalArgumentException] if `null` at installation time.
+     * **MUST** be set before the plugin is installed. Throws [IllegalStateException] if `null` at installation time.
      */
     var rethisInstance: ReThis? = null
 
@@ -45,9 +45,7 @@ class RedisRateLimitConfig {
      *
      * Defaults to the client's IP address via [clientIp].
      */
-    var keySelector: (ApplicationCall) -> String = { call ->
-        call.clientIp()
-    }
+    var keySelector: (ApplicationCall) -> String = { call -> call.clientIp() }
 
     /**
      * A suspending callback invoked when a request exceeds the rate limit.
@@ -57,7 +55,11 @@ class RedisRateLimitConfig {
      *
      * Defaults to responding with [HttpStatusCode.TooManyRequests] and no message.
      */
-    var onRateLimited: suspend (ApplicationCall) -> Unit = { call ->
-        call.respond(HttpStatusCode.TooManyRequests)
-    }
+    var onRateLimited: suspend (ApplicationCall) -> Unit = { call -> call.respond(HttpStatusCode.TooManyRequests) }
+
+    override fun toString(): String = """
+        Max requests: $maxRequests
+        Sliding window timeout: ${windowSeconds}s
+        Key selector: $keySelector
+    """.trimIndent()
 }

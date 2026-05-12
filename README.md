@@ -21,7 +21,7 @@ repositories {
 
 ```toml
 [versions]
-redis-rate-limit = "0.1.1"
+redis-rate-limit = "0.2.1"
 
 [libraries]
 redis-rate-limit = { module = "com.github.ItzNikDi:RedisRateLimit", version.ref = "redis-rate-limit" }
@@ -38,7 +38,7 @@ dependencies {
 ### B. Adding directly to `build.gradle.kts`
 ```kotlin
 dependencies {
-    implementation("com.github.ItzNikDi:RedisRateLimit:0.1.1")
+    implementation("com.github.ItzNikDi:RedisRateLimit:0.2.1")
 }
 ```
 
