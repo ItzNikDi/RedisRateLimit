@@ -21,7 +21,7 @@ repositories {
 
 ```toml
 [versions]
-redis-rate-limit = "0.2.1"
+redis-rate-limit = "0.2.2"
 
 [libraries]
 redis-rate-limit = { module = "com.github.ItzNikDi:RedisRateLimit", version.ref = "redis-rate-limit" }
@@ -38,7 +38,7 @@ dependencies {
 ### B. Adding directly to `build.gradle.kts`
 ```kotlin
 dependencies {
-    implementation("com.github.ItzNikDi:RedisRateLimit:0.2.1")
+    implementation("com.github.ItzNikDi:RedisRateLimit:0.2.2")
 }
 ```
 
@@ -76,6 +76,15 @@ install(RedisRateLimit) {
     }
 }
 ```
+
+### Logging
+In `logback.xml`, consider registering the plugin:
+```xml
+<logger name="dev.nikdi.redisratelimit" level="DEBUG"/>
+```
+
+to have log messages from its initialization.
+
 ----
 
 ## Credits to:

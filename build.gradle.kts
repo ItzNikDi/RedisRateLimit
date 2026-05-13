@@ -4,19 +4,18 @@ plugins {
 }
 
 group = "dev.nikdi"
-version = libs.versions.redis.rate.limit
-
-application.mainClass = "io.ktor.server.netty.EngineMain"
+version = libs.versions.redis.rate.limit.get()
 
 kotlin {
     jvmToolchain(21)
 }
 
 dependencies {
-    implementation(libs.ktor.server.core)
-    implementation(libs.ktor.server.core)
-    implementation(libs.rethis)
-    implementation(libs.ktor.server.config.yaml)
+    compileOnly(libs.ktor.server.core)
+    compileOnly(libs.rethis)
     testImplementation(libs.ktor.server.test.host)
     testImplementation(libs.kotlin.test.junit)
+    testImplementation(libs.rethis)
+    testImplementation(libs.testcontainers)
+    testImplementation(libs.testcontainers.redis)
 }

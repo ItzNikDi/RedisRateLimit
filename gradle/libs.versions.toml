@@ -1,15 +1,18 @@
 [versions]
-redis-rate-limit = "0.2.1"
+redis-rate-limit = "0.2.2"
 kotlin = "2.3.21"
 ktor = "3.4.3"
+testcontainers = "2.0.5"
+testcontainers-redis = "2.2.4"
 rethis = "0.4.1"
 
 [libraries]
-ktor-server-core = { module = "io.ktor:ktor-server-core-jvm", version.ref = "ktor" }
-ktor-server-config-yaml = { module = "io.ktor:ktor-server-config-yaml", version.ref = "ktor" }
+ktor-server-core = { module = "io.ktor:ktor-server-core", version.ref = "ktor" }
 rethis = { module = "eu.vendeli:rethis", version.ref = "rethis" }
 ktor-server-test-host = { module = "io.ktor:ktor-server-test-host", version.ref = "ktor" }
 kotlin-test-junit = { module = "org.jetbrains.kotlin:kotlin-test-junit", version.ref = "kotlin" }
+testcontainers = { module = "org.testcontainers:testcontainers", version.ref = "testcontainers" }
+testcontainers-redis = { module = "com.redis:testcontainers-redis", version.ref = "testcontainers-redis" }
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
