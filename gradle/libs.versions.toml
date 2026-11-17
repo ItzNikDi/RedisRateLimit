@@ -1,5 +1,5 @@
 [versions]
-redis-rate-limit = "0.2.2"
+redis-rate-limit = "0.3.0"
 kotlin = "2.4.21"
 ktor = "3.6.1"
 testcontainers = "2.0.5"
