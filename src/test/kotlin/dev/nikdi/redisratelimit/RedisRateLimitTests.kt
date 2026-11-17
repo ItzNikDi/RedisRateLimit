@@ -8,17 +8,22 @@ import io.ktor.http.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.server.testing.*
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertTrue
-import org.testcontainers.utility.DockerImageName
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.time.Duration.Companion.milliseconds
 
 internal class RedisRateLimitTests {
     companion object {
-        private val redis = RedisContainer(DockerImageName.parse("redis:8.6.3-alpine"))
+        private val redis = RedisContainer("redis:8.10.3-alpine3.23")
             .withExposedPorts(6379)
             .also { it.start() }
 
@@ -54,7 +59,7 @@ internal class RedisRateLimitTests {
             }
         }
 
-        assertEquals(ex.message, "RedisRateLimit: rethisInstance must be provided!")
+        assertEquals("RedisRateLimit: rethisInstance must be provided!", ex.message)
     }
 
     @Test
@@ -100,15 +105,15 @@ internal class RedisRateLimitTests {
             install(RedisRateLimit) {
                 rethisInstance = rethis
                 maxRequests = 1
-                keySelector = { call -> call.request.headers["X-User-Id"] ?: "anonymous" }
+                keySelector = KeySelector("User ID") { call -> call.request.headers["X-User-ID"] ?: "anonymous" }
             }
             get("/test") { call.respond(HttpStatusCode.OK) }
         }
 
         val client = createClient {}
-        client.get("/test") { headers.append("X-User-Id", "user-a") }
-        val blockedA = client.get("/test") { headers.append("X-User-Id", "user-a") }
-        val okB = client.get("/test") { headers.append("X-User-Id", "user-b") }
+        client.get("/test") { headers.append("X-User-ID", "user-a") }
+        val blockedA = client.get("/test") { headers.append("X-User-ID", "user-a") }
+        val okB = client.get("/test") { headers.append("X-User-ID", "user-b") }
 
         assertEquals(HttpStatusCode.TooManyRequests, blockedA.status)
         assertEquals(HttpStatusCode.OK, okB.status)
@@ -137,5 +142,67 @@ internal class RedisRateLimitTests {
             assertTrue(handlerCalled)
             assertEquals(HttpStatusCode.ServiceUnavailable, response.status)
         }
+    }
+
+    @Test
+    fun `window slides instead of resetting`() = testApplication {
+        installRateLimit(maxRequests = 2, windowSeconds = 3)
+        val client = createClient {}
+
+        assertEquals(HttpStatusCode.OK, client.get("/test").status) // A at t=0
+        delay(1500.milliseconds)
+        assertEquals(HttpStatusCode.OK, client.get("/test").status) // B at t=1.5
+        delay(1700.milliseconds) // t≈3.2: A expired, B still inside
+        assertEquals(HttpStatusCode.OK, client.get("/test").status) // C: window holds only B
+        assertEquals(HttpStatusCode.TooManyRequests, client.get("/test").status) // D: B and C in window
+    }
+
+    @Test
+    fun `client recovers after the window passes`() = testApplication {
+        installRateLimit(maxRequests = 1, windowSeconds = 1)
+        val client = createClient {}
+
+        client.get("/test")
+        assertEquals(HttpStatusCode.TooManyRequests, client.get("/test").status)
+        delay(1200.milliseconds)
+        assertEquals(HttpStatusCode.OK, client.get("/test").status)
+    }
+
+    @Test
+    fun `blocked request never reaches the route handler`() = testApplication {
+        val reached = AtomicInteger(0)
+        routing {
+            install(RedisRateLimit) { rethisInstance = rethis; maxRequests = 1 }
+            get("/test") { reached.incrementAndGet(); call.respond(HttpStatusCode.OK) }
+        }
+        val client = createClient {}
+        repeat(3) { client.get("/test") }
+        assertEquals(1, reached.get())
+    }
+
+    @Test
+    fun `limits are tracked per path`() = testApplication {
+        routing {
+            install(RedisRateLimit) { rethisInstance = rethis; maxRequests = 1 }
+            get("/a") { call.respond(HttpStatusCode.OK) }
+            get("/b") { call.respond(HttpStatusCode.OK) }
+        }
+        val client = createClient {}
+        client.get("/a")
+        assertEquals(HttpStatusCode.TooManyRequests, client.get("/a").status)
+        assertEquals(HttpStatusCode.OK, client.get("/b").status)
+    }
+
+    @Test
+    fun `concurrent requests never exceed the limit`() = testApplication {
+        installRateLimit(maxRequests = 10)
+        val client = createClient {}
+
+        val statuses = coroutineScope {
+            (1..50).map { async { client.get("/test").status } }.awaitAll()
+        }
+
+        assertEquals(10, statuses.count { it == HttpStatusCode.OK })
+        assertEquals(40, statuses.count { it == HttpStatusCode.TooManyRequests })
     }
 }
