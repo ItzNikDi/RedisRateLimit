@@ -6,6 +6,29 @@ import io.ktor.server.application.*
 import io.ktor.server.response.*
 
 /**
+ * A selector that derives a rate-limiting key from an [ApplicationCall].
+ *
+ * @param description the value used in [toString]
+ * @param selector the function used to derive the key
+ */
+open class KeySelector(
+    private val description: String,
+    private val selector: (ApplicationCall) -> String
+) {
+    open operator fun invoke(call: ApplicationCall): String = selector(call)
+
+    companion object {
+        /**
+         * Uses the client's IP address as the rate-limiting key.
+         * @see clientIp
+         */
+        val ClientIP = KeySelector("Client IP") { call -> call.clientIp() }
+    }
+
+    override fun toString(): String = description
+}
+
+/**
  * Configuration for the [RedisRateLimit] plugin.
  *
  * Must be configured with a [rethisInstance] before the plugin can be utilized.
@@ -37,15 +60,15 @@ class RedisRateLimitConfig {
     var windowSeconds: Long = 60
 
     /**
-     * A function that derives a string key from an [ApplicationCall], used to
-     * identify and bucket requests for rate limiting purposes.
+     * Defines how a request is identified for rate limiting purposes by deriving
+     * a string key from an [ApplicationCall].
      *
-     * Returns a client IP address or an authenticated user ID.
-     * The final Redis key will be `ratelimit:<path>:<keySelector result>`.
+     * The resulting value is used as part of the Redis key:
+     * `ratelimit:<path>:<keySelector result>`.
      *
-     * Defaults to the client's IP address via [clientIp].
+     * Defaults to [KeySelector.ClientIP].
      */
-    var keySelector: (ApplicationCall) -> String = { call -> call.clientIp() }
+    var keySelector: KeySelector = KeySelector.ClientIP
 
     /**
      * A suspending callback invoked when a request exceeds the rate limit.
@@ -58,8 +81,10 @@ class RedisRateLimitConfig {
     var onRateLimited: suspend (ApplicationCall) -> Unit = { call -> call.respond(HttpStatusCode.TooManyRequests) }
 
     override fun toString(): String = """
-        Max requests: $maxRequests
-        Sliding window timeout: ${windowSeconds}s
-        Key selector: $keySelector
+        ${this::class.simpleName}(
+            Max requests: $maxRequests
+            Sliding window timeout: ${windowSeconds}s
+            Key selector: $keySelector
+        )
     """.trimIndent()
 }
