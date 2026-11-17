@@ -21,7 +21,7 @@ repositories {
 
 ```toml
 [versions]
-redis-rate-limit = "0.2.2"
+redis-rate-limit = "0.3.0"
 
 [libraries]
 redis-rate-limit = { module = "com.github.ItzNikDi:RedisRateLimit", version.ref = "redis-rate-limit" }
@@ -38,7 +38,7 @@ dependencies {
 ### B. Adding directly to `build.gradle.kts`
 ```kotlin
 dependencies {
-    implementation("com.github.ItzNikDi:RedisRateLimit:0.2.2")
+    implementation("com.github.ItzNikDi:RedisRateLimit:0.3.0")
 }
 ```
 
@@ -68,7 +68,7 @@ install(RedisRateLimit) {
     windowSeconds = 30
 
     // client identification - defaults to IP address
-    keySelector = { call -> call.clientIp() }
+    keySelector = KeySelector.ClientIP
 
     // limit exceeded behavior - defaults to 429 with no message
     onRateLimited = { call ->
